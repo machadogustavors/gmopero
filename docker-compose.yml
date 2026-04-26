@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  gmopero-db:
+    image: postgres:16-alpine
+    container_name: gmopero-db
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: gmopero
+      POSTGRES_PASSWORD: gmopero_dev
+      POSTGRES_DB: gmopero
+    volumes:
+      - gmopero_data:/var/lib/postgresql/data
+
+  gmopero-db-test:
+    image: postgres:16-alpine
+    container_name: gmopero-db-test
+    restart: unless-stopped
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: gmopero
+      POSTGRES_PASSWORD: gmopero_test
+      POSTGRES_DB: gmopero_test
+    volumes:
+      - gmopero_test_data:/var/lib/postgresql/data
+
+volumes:
+  gmopero_data:
+  gmopero_test_data:

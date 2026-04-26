@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: gmopero
+      POSTGRES_USER: ${DB_USER:-gmopero}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gmopero}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/OWNER/gmopero-backend:latest}
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-gmopero}:${DB_PASSWORD}@postgres:5432/gmopero?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      FRONTEND_URL: ${FRONTEND_URL:-https://app.gmopero.com.br}
+      PLUGNOTAS_API_KEY: ${PLUGNOTAS_API_KEY:-}
+      PLUGNOTAS_BASE_URL: ${PLUGNOTAS_BASE_URL:-https://api.plugnotas.com.br}
+      PLUGNOTAS_WEBHOOK_SECRET: ${PLUGNOTAS_WEBHOOK_SECRET:-}
+      PLUGNOTAS_ALLOWED_HOSTS: ${PLUGNOTAS_ALLOWED_HOSTS:-}
+      NODE_ENV: production
+    expose:
+      - "3000"
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/OWNER/gmopero-frontend:latest}
+    restart: always
+    depends_on:
+      - backend
+    expose:
+      - "3001"
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot-etc:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+
+  # Run once to get SSL certs: docker compose -f docker-compose.prod.yml run --rm certbot
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    entrypoint: >
+      certbot certonly --webroot --webroot-path=/var/www/certbot
+      --email ${SSL_EMAIL:-admin@example.com} --agree-tos --no-eff-email
+      -d ${DOMAIN:-gmopero.com.br} -d api.${DOMAIN:-gmopero.com.br} -d app.${DOMAIN:-gmopero.com.br}
+    profiles:
+      - ssl
+
+volumes:
+  pgdata:
+  certbot-etc:
+  certbot-www:

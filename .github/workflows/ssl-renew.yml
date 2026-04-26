@@ -1,0 +1,25 @@
+name: SSL Renewal
+
+on:
+  schedule:
+    # Every Monday at 04:00 UTC
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  renew:
+    name: Renew SSL Certificates
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Renew certificates
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ~/gmopero
+            docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot renew --quiet
+            docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
+            echo "✅ SSL renewal check complete"

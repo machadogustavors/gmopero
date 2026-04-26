@@ -1,0 +1,122 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Git SHA to rollback to (e.g. abc1234). Leave empty to rollback to the previous deploy."
+        required: false
+      restore_db:
+        description: "Also restore database from backup?"
+        type: boolean
+        default: false
+      backup_file:
+        description: "Backup filename to restore (e.g. gmopero_20260412_030000.sql.gz). Required if restore_db is true."
+        required: false
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/gmopero-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/gmopero-frontend
+
+jobs:
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Determine target SHA
+        id: target
+        run: |
+          if [ -n "${{ inputs.target_sha }}" ]; then
+            echo "sha=${{ inputs.target_sha }}" >> $GITHUB_OUTPUT
+            echo "Rolling back to specified SHA: ${{ inputs.target_sha }}"
+          else
+            # Get the SHA before the latest (previous deploy)
+            PREVIOUS_SHA=$(gh api repos/${{ github.repository }}/actions/runs \
+              --jq '[.workflow_runs[] | select(.name=="Deploy" and .conclusion=="success")] | .[1].head_sha' \
+              -q '.workflow_runs')
+            if [ -z "$PREVIOUS_SHA" ]; then
+              echo "❌ Could not find previous successful deploy"
+              exit 1
+            fi
+            echo "sha=$PREVIOUS_SHA" >> $GITHUB_OUTPUT
+            echo "Rolling back to previous deploy: $PREVIOUS_SHA"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pre-rollback database backup
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            BACKUP_DIR=~/gmopero/backups
+            mkdir -p "$BACKUP_DIR"
+
+            echo "📦 Creating pre-rollback backup..."
+            docker compose -f ~/gmopero/docker-compose.prod.yml exec -T postgres \
+              pg_dump -U ${{ secrets.DB_USER }} -d gmopero --no-owner --clean --if-exists \
+              | gzip > "$BACKUP_DIR/gmopero_pre_rollback_$(date +%Y%m%d_%H%M%S).sql.gz"
+            echo "✅ Pre-rollback backup complete"
+
+      - name: Restore database (if requested)
+        if: ${{ inputs.restore_db && inputs.backup_file }}
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            BACKUP_FILE=~/gmopero/backups/${{ inputs.backup_file }}
+
+            if [ ! -f "$BACKUP_FILE" ]; then
+              echo "❌ Backup file not found: $BACKUP_FILE"
+              exit 1
+            fi
+
+            echo "🔄 Restoring database from ${{ inputs.backup_file }}..."
+            gunzip -c "$BACKUP_FILE" | docker compose -f ~/gmopero/docker-compose.prod.yml exec -T postgres \
+              psql -U ${{ secrets.DB_USER }} -d gmopero --quiet
+            echo "✅ Database restored"
+
+      - name: Rollback containers
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: TARGET_SHA
+          script: |
+            set -euo pipefail
+            cd ~/gmopero
+
+            echo "🔄 Rolling back to SHA: $TARGET_SHA"
+
+            # Update .env with rollback image tags
+            sed -i "s|BACKEND_IMAGE=.*|BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}:${TARGET_SHA}|" .env
+            sed -i "s|FRONTEND_IMAGE=.*|FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}:${TARGET_SHA}|" .env
+
+            # Login and pull
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.prod.yml pull backend frontend
+            docker compose -f docker-compose.prod.yml up -d --no-build
+
+            # Health check
+            echo "Waiting for backend health check..."
+            for i in $(seq 1 30); do
+              if docker compose -f docker-compose.prod.yml exec -T backend wget -q --spider http://localhost:3000/api/health 2>/dev/null; then
+                echo "✅ Rollback successful — backend healthy"
+                exit 0
+              fi
+              sleep 2
+            done
+
+            echo "❌ Rollback health check failed"
+            exit 1
