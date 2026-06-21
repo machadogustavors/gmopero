@@ -33,18 +33,4 @@ export class CompanySettingsService {
     });
   }
 
-  async isFiscalDataComplete(companyId: string): Promise<boolean> {
-    const company = await this.getSettings(companyId);
-
-    return !!(
-      company.taxId &&
-      company.legalName &&
-      company.street &&
-      company.number &&
-      company.neighborhood &&
-      company.cityCode &&
-      company.state &&
-      company.zipCode
-    );
-  }
 }

@@ -16,6 +16,7 @@ import { ServiceOrdersService } from './service-orders.service';
 import { CreateServiceOrderDto } from './dto/create-service-order.dto';
 import { UpdateServiceOrderDto } from './dto/update-service-order.dto';
 import { AddItemDto } from './dto/add-item.dto';
+import { UpdateInvoiceFlagsDto } from './dto/update-invoice-flags.dto';
 import { CurrentUser } from '../common/decorators';
 import type { CurrentUserPayload } from '../common/decorators';
 
@@ -103,5 +104,14 @@ export class ServiceOrdersController {
     @Param('id') id: string,
   ) {
     return this.serviceOrdersService.cancel(user.companyId, id);
+  }
+
+  @Patch(':id/invoice-flags')
+  updateInvoiceFlags(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateInvoiceFlagsDto,
+  ) {
+    return this.serviceOrdersService.updateInvoiceFlags(user.companyId, id, dto);
   }
 }

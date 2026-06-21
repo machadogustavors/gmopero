@@ -107,7 +107,7 @@ export class ServiceOrdersService {
         customer: true,
         vehicle: true,
         items: { orderBy: { createdAt: 'asc' } },
-        invoices: { orderBy: { createdAt: 'desc' } },
+
         payments: { orderBy: { createdAt: 'desc' } },
       },
     });
@@ -298,12 +298,42 @@ export class ServiceOrdersService {
     });
   }
 
-  async markInvoiced(id: string) {
+  async updateInvoiceFlags(
+    companyId: string,
+    id: string,
+    dto: { laborInvoiceIssued?: boolean; partsInvoiceIssued?: boolean },
+  ) {
+    const order = await this.findOne(companyId, id);
+
+    if (order.status === ServiceOrderStatus.CANCELLED) {
+      throw new BadRequestException('Cannot update invoice flags on a cancelled order');
+    }
+
+    const updateData: Prisma.ServiceOrderUpdateInput = {};
+
+    if (dto.laborInvoiceIssued !== undefined) {
+      updateData.laborInvoiceIssued = dto.laborInvoiceIssued;
+    }
+    if (dto.partsInvoiceIssued !== undefined) {
+      updateData.partsInvoiceIssued = dto.partsInvoiceIssued;
+    }
+
+    const newLabor = dto.laborInvoiceIssued ?? order.laborInvoiceIssued;
+    const newParts = dto.partsInvoiceIssued ?? order.partsInvoiceIssued;
+
+    if (newLabor && newParts && order.status === ServiceOrderStatus.CLOSED) {
+      updateData.status = ServiceOrderStatus.INVOICED;
+      updateData.invoicedAt = new Date();
+    }
+
     return this.prisma.serviceOrder.update({
       where: { id },
-      data: {
-        status: ServiceOrderStatus.INVOICED,
-        invoicedAt: new Date(),
+      data: updateData,
+      include: {
+        customer: { select: { id: true, name: true } },
+        vehicle: { select: { id: true, licensePlate: true, brand: true, model: true } },
+        items: true,
+        payments: true,
       },
     });
   }

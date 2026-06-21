@@ -22,7 +22,6 @@ export const mockPrismaService = () => {
     vehicle: createModelMock(),
     serviceOrder: createModelMock(),
     serviceOrderItem: createModelMock(),
-    invoice: createModelMock(),
     payment: createModelMock(),
     $transaction: jest.fn((fn) => fn(mockPrismaService())),
     $connect: jest.fn(),

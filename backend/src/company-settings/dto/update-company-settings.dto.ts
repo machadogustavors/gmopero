@@ -1,11 +1,6 @@
-import { IsString, IsOptional, IsEmail, IsInt, MaxLength, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsEmail, MaxLength } from 'class-validator';
 
 export class UpdateCompanySettingsDto {
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(3)
-  fiscalRegime?: number;
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -69,28 +64,4 @@ export class UpdateCompanySettingsDto {
   @IsEmail()
   email?: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(4)
-  defaultIcmsCst?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(4)
-  defaultIcmsCsosn?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(4)
-  defaultPisCst?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(4)
-  defaultCofinsCst?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(2)
-  defaultIcmsOrigem?: string;
 }

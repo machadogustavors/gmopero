@@ -61,32 +61,4 @@ describe('CompanySettingsService', () => {
     });
   });
 
-  describe('isFiscalDataComplete', () => {
-    it('should return true when all fiscal fields are filled', async () => {
-      const company = createMockCompany({ id: companyId });
-      prisma.company.findUnique.mockResolvedValue(company);
-
-      const result = await service.isFiscalDataComplete(companyId);
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false when taxId is missing', async () => {
-      const company = createMockCompany({ id: companyId, taxId: null });
-      prisma.company.findUnique.mockResolvedValue(company);
-
-      const result = await service.isFiscalDataComplete(companyId);
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false when legalName is missing', async () => {
-      const company = createMockCompany({ id: companyId, legalName: null });
-      prisma.company.findUnique.mockResolvedValue(company);
-
-      const result = await service.isFiscalDataComplete(companyId);
-
-      expect(result).toBe(false);
-    });
-  });
 });

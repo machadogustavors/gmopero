@@ -11,9 +11,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { CustomersModule } from './customers/customers.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { ServiceOrdersModule } from './service-orders/service-orders.module';
-import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
-import { FiscalModule } from './fiscal/fiscal.module';
 import { CompanySettingsModule } from './company-settings/company-settings.module';
 import { ProductsModule } from './products/products.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -39,9 +37,7 @@ import { FinanceModule } from './finance/finance.module';
     CustomersModule,
     VehiclesModule,
     ServiceOrdersModule,
-    InvoicesModule,
     PaymentsModule,
-    FiscalModule,
     CompanySettingsModule,
     ProductsModule,
     InventoryModule,

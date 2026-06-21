@@ -28,14 +28,11 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  FileText,
   DollarSign,
   Play,
   Lock,
   Ban,
-  Eye,
 } from 'lucide-react';
-import Link from 'next/link';
 import {
   Select,
   SelectContent,
@@ -45,7 +42,6 @@ import {
 } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { toast } from 'sonner';
-import { isTrustedExternalUrl } from '@/lib/url';
 import type {
   ServiceOrder,
   ServiceOrderItem,
@@ -71,6 +67,8 @@ export default function ServiceOrderDetailPage() {
 
   const [order, setOrder] = useState<ServiceOrder | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [laborInvoiceIssued, setLaborInvoiceIssued] = useState(false);
+  const [partsInvoiceIssued, setPartsInvoiceIssued] = useState(false);
 
   // Add Item dialog
   const [isItemOpen, setIsItemOpen] = useState(false);
@@ -95,6 +93,8 @@ export default function ServiceOrderDetailPage() {
     try {
       const data = await api.get<ServiceOrder>(`/service-orders/${orderId}`);
       setOrder(data);
+      setLaborInvoiceIssued(data.laborInvoiceIssued);
+      setPartsInvoiceIssued(data.partsInvoiceIssued);
     } catch {
       toast.error('Falha ao carregar ordem de serviço');
       router.push('/service-orders');
@@ -202,13 +202,17 @@ export default function ServiceOrderDetailPage() {
     }
   };
 
-  const handleEmitInvoice = async () => {
+  const handleToggleInvoiceFlag = async (
+    flag: 'laborInvoiceIssued' | 'partsInvoiceIssued',
+    value: boolean,
+  ) => {
     try {
-      await api.post(`/fiscal/emit/${orderId}`);
-      toast.success('Emissão de nota fiscal iniciada — verifique em breve');
+      await api.patch(`/service-orders/${orderId}/invoice-flags`, { [flag]: value });
+      if (flag === 'laborInvoiceIssued') setLaborInvoiceIssued(value);
+      else setPartsInvoiceIssued(value);
       loadOrder();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Falha ao emitir nota fiscal');
+      toast.error(error instanceof Error ? error.message : 'Falha ao atualizar nota');
     }
   };
 
@@ -228,7 +232,6 @@ export default function ServiceOrderDetailPage() {
 
   const canEdit = order.status === 'DRAFT' || order.status === 'OPEN';
   const canClose = order.status === 'OPEN';
-  const canEmit = order.status === 'CLOSED';
   const canCancel = order.status !== 'CANCELLED' && order.status !== 'INVOICED';
   const totalPaid = (order.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
   const remaining = Number(order.totalAmount) - totalPaid;
@@ -262,11 +265,6 @@ export default function ServiceOrderDetailPage() {
           {canClose && (
             <Button onClick={() => handleStatusTransition('close')}>
               <Lock className="mr-2 h-4 w-4" /> Fechar
-            </Button>
-          )}
-          {canEmit && (
-            <Button onClick={handleEmitInvoice} variant="default">
-              <FileText className="mr-2 h-4 w-4" /> Emitir NF
             </Button>
           )}
           {canCancel && (
@@ -567,49 +565,37 @@ export default function ServiceOrderDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Invoices */}
-      {order.invoices && order.invoices.length > 0 && (
+      {/* Notas Fiscais */}
+      {(order.status === 'CLOSED' || order.status === 'INVOICED') && (
         <Card>
           <CardHeader>
             <CardTitle>Notas Fiscais</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {order.invoices.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <div className="font-medium">
-                    {inv.type} #{inv.invoiceNumber ?? '—'}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {inv.accessKey ? `Chave: ${inv.accessKey.slice(0, 20)}...` : inv.message ?? 'Processando...'}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge
-                    variant={
-                      inv.status === 'COMPLETED'
-                        ? 'default'
-                        : inv.status === 'PROCESSING'
-                          ? 'secondary'
-                          : 'destructive'
-                    }
-                  >
-                    {inv.status}
-                  </Badge>
-                  <Link href={`/invoices/${inv.id}`}>
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4 mr-1" />
-                      Visualizar
-                    </Button>
-                  </Link>
-                  {isTrustedExternalUrl(inv.pdfUrl) && (
-                    <a href={inv.pdfUrl} target="_blank" rel="noreferrer">
-                      <Button variant="outline" size="sm">PDF</Button>
-                    </a>
-                  )}
-                </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div>
+                <p className="font-medium">Nota de mão de obra</p>
+                <p className="text-sm text-muted-foreground">Emitida no sistema externo</p>
               </div>
-            ))}
+              <input
+                type="checkbox"
+                checked={laborInvoiceIssued}
+                onChange={(e) => handleToggleInvoiceFlag('laborInvoiceIssued', e.target.checked)}
+                className="h-5 w-5 cursor-pointer"
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div>
+                <p className="font-medium">Nota de peças</p>
+                <p className="text-sm text-muted-foreground">Emitida no sistema externo</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={partsInvoiceIssued}
+                onChange={(e) => handleToggleInvoiceFlag('partsInvoiceIssued', e.target.checked)}
+                className="h-5 w-5 cursor-pointer"
+              />
+            </div>
           </CardContent>
         </Card>
       )}

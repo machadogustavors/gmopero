@@ -9,6 +9,5 @@ export {
   createMockVehicle,
   createMockServiceOrder,
   createMockServiceOrderItem,
-  createMockInvoice,
   createMockPayment,
 } from './factory.helper';

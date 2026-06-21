@@ -23,9 +23,4 @@ export class CompanySettingsController {
     return this.companySettingsService.updateSettings(user.companyId, dto);
   }
 
-  @Get('fiscal-status')
-  async fiscalStatus(@CurrentUser() user: CurrentUserPayload) {
-    const isComplete = await this.companySettingsService.isFiscalDataComplete(user.companyId);
-    return { fiscalDataComplete: isComplete };
-  }
 }

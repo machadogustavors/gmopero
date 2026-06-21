@@ -11,7 +11,6 @@ import {
   Package,
   Boxes,
   ShoppingCart,
-  FileText,
   Wallet,
   Settings,
   LogOut,
@@ -33,7 +32,6 @@ const navItems = [
   { href: '/inventory', label: 'Estoque', icon: Boxes },
   { href: '/purchases', label: 'Compras', icon: ShoppingCart, roles: ['OWNER', 'ADMIN'] as AppRole[] },
   { href: '/finance', label: 'Financeiro', icon: Wallet, roles: ['OWNER', 'ADMIN'] as AppRole[] },
-  { href: '/invoices', label: 'Notas Fiscais', icon: FileText },
   { href: '/settings', label: 'Configurações', icon: Settings, roles: ['OWNER', 'ADMIN'] as AppRole[] },
 ];
 

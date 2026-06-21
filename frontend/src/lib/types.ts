@@ -41,13 +41,6 @@ export interface Company {
   zipCode: string | null;
   phone: string | null;
   email: string | null;
-  fiscalRegime: number | null;
-  defaultIcmsCst: string | null;
-  defaultIcmsCsosn: string | null;
-  defaultPisCst: string | null;
-  defaultCofinsCst: string | null;
-  defaultIcmsOrigem: string | null;
-  plugnotasRegistered: boolean;
 }
 
 // ── Customer ──────────────────────────────────
@@ -253,37 +246,14 @@ export interface ServiceOrder {
   closedAt: string | null;
   invoicedAt: string | null;
   cancelledAt: string | null;
+  laborInvoiceIssued: boolean;
+  partsInvoiceIssued: boolean;
   createdAt: string;
   customer?: Customer | { id: string; name: string; taxId?: string };
   vehicle?: Vehicle | { id: string; licensePlate: string; brand?: string; model?: string } | null;
   items?: ServiceOrderItem[];
-  invoices?: Invoice[];
   payments?: Payment[];
   _count?: { items: number; payments: number };
-}
-
-// ── Invoice ───────────────────────────────────
-export type InvoiceStatus = 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED' | 'DENIED';
-export type InvoiceType = 'NFE' | 'NFCE';
-
-export interface Invoice {
-  id: string;
-  companyId: string;
-  serviceOrderId: string;
-  plugnotasId: string | null;
-  integrationId: string | null;
-  type: InvoiceType;
-  status: InvoiceStatus;
-  accessKey: string | null;
-  invoiceNumber: string | null;
-  series: string | null;
-  pdfUrl: string | null;
-  xmlUrl: string | null;
-  message: string | null;
-  totalAmount: number;
-  issuedAt: string | null;
-  createdAt: string;
-  serviceOrder?: { id: string; orderNumber: number; customer?: { id: string; name: string } };
 }
 
 // ── Payment ───────────────────────────────────
