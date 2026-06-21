@@ -359,6 +359,32 @@ export class ServiceOrdersService {
     });
   }
 
+  async getSummary(companyId: string) {
+    const [counts, invoicedRevenue] = await Promise.all([
+      this.prisma.serviceOrder.groupBy({
+        by: ['status'],
+        where: { companyId },
+        _count: { id: true },
+      }),
+      this.prisma.serviceOrder.aggregate({
+        where: { companyId, status: ServiceOrderStatus.INVOICED },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    const countMap = Object.fromEntries(
+      counts.map((c) => [c.status, c._count.id]),
+    );
+
+    return {
+      openCount: (countMap['DRAFT'] ?? 0) + (countMap['OPEN'] ?? 0),
+      closedCount: countMap['CLOSED'] ?? 0,
+      invoicedCount: countMap['INVOICED'] ?? 0,
+      cancelledCount: countMap['CANCELLED'] ?? 0,
+      invoicedRevenue: Number(invoicedRevenue._sum.totalAmount ?? 0),
+    };
+  }
+
   // ── Helpers ──────────────────────────────────────────
 
   private async recalculateTotals(orderId: string) {

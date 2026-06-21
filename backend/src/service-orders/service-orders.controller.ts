@@ -43,6 +43,11 @@ export class ServiceOrdersController {
     return this.serviceOrdersService.findAll(user.companyId, status, search, page, limit);
   }
 
+  @Get('summary')
+  getSummary(@CurrentUser() user: CurrentUserPayload) {
+    return this.serviceOrdersService.getSummary(user.companyId);
+  }
+
   @Get(':id')
   findOne(
     @CurrentUser() user: CurrentUserPayload,

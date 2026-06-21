@@ -13,8 +13,17 @@ import type {
   ServiceOrder,
 } from '@/lib/types';
 
+type ServiceOrderSummary = {
+  openCount: number;
+  closedCount: number;
+  invoicedCount: number;
+  cancelledCount: number;
+  invoicedRevenue: number;
+};
+
 export default function DashboardPage() {
   const [recentOrders, setRecentOrders] = useState<ServiceOrder[]>([]);
+  const [orderSummary, setOrderSummary] = useState<ServiceOrderSummary | null>(null);
   const [receivablesSummary, setReceivablesSummary] = useState<ReceivablesResponse['summary'] | null>(null);
   const [cashFlowSummary, setCashFlowSummary] = useState<CashFlowResponse['summary'] | null>(null);
   const [highUrgencyStockCount, setHighUrgencyStockCount] = useState(0);
@@ -26,14 +35,16 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [ordersResponse, receivablesResponse, cashFlowResponse, suggestionsResponse] = await Promise.all([
+      const [ordersResponse, summaryResponse, receivablesResponse, cashFlowResponse, suggestionsResponse] = await Promise.all([
         api.get<PaginatedResponse<ServiceOrder>>('/service-orders?limit=10'),
+        api.get<ServiceOrderSummary>('/service-orders/summary'),
         api.get<ReceivablesResponse>('/finance/receivables?limit=5'),
         api.get<CashFlowResponse>('/finance/cash-flow'),
         api.get<ReplenishmentSuggestionsResponse>('/inventory/replenishment-suggestions?days=30&limit=20'),
       ]);
 
       setRecentOrders(ordersResponse.data);
+      setOrderSummary(summaryResponse);
       setReceivablesSummary(receivablesResponse.summary);
       setCashFlowSummary(cashFlowResponse.summary);
       setHighUrgencyStockCount(suggestionsResponse.summary.highUrgencyCount);
@@ -43,16 +54,6 @@ export default function DashboardPage() {
       setIsLoading(false);
     }
   };
-
-  const statusCounts = {
-    open: recentOrders.filter((o) => o.status === 'OPEN' || o.status === 'DRAFT').length,
-    closed: recentOrders.filter((o) => o.status === 'CLOSED').length,
-    invoiced: recentOrders.filter((o) => o.status === 'INVOICED').length,
-  };
-
-  const totalRevenue = recentOrders
-    .filter((o) => o.status === 'INVOICED')
-    .reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
   const statusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -83,7 +84,7 @@ export default function DashboardPage() {
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statusCounts.open}</div>
+            <div className="text-2xl font-bold">{orderSummary?.openCount ?? '—'}</div>
           </CardContent>
         </Card>
 
@@ -93,7 +94,7 @@ export default function DashboardPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statusCounts.closed}</div>
+            <div className="text-2xl font-bold">{orderSummary?.closedCount ?? '—'}</div>
           </CardContent>
         </Card>
 
@@ -103,7 +104,7 @@ export default function DashboardPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statusCounts.invoiced}</div>
+            <div className="text-2xl font-bold">{orderSummary?.invoicedCount ?? '—'}</div>
           </CardContent>
         </Card>
 
@@ -114,7 +115,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R$ {totalRevenue.toFixed(2)}
+              {(orderSummary?.invoicedRevenue ?? 0).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+              })}
             </div>
           </CardContent>
         </Card>
