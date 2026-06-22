@@ -63,7 +63,14 @@ export default function DashboardPage() {
       INVOICED: 'default',
       CANCELLED: 'destructive',
     };
-    return <Badge variant={variants[status] ?? 'outline'}>{status}</Badge>;
+    const labels: Record<string, string> = {
+      DRAFT: 'Rascunho',
+      OPEN: 'Aberta',
+      CLOSED: 'Fechada',
+      INVOICED: 'Faturada',
+      CANCELLED: 'Cancelada',
+    };
+    return <Badge variant={variants[status] ?? 'outline'}>{labels[status] ?? status}</Badge>;
   };
 
   if (isLoading) {

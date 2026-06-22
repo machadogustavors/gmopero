@@ -47,6 +47,14 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
   CANCELLED: 'destructive',
 };
 
+const statusLabel: Record<string, string> = {
+  DRAFT: 'Rascunho',
+  OPEN: 'Aberta',
+  CLOSED: 'Fechada',
+  INVOICED: 'Faturada',
+  CANCELLED: 'Cancelada',
+};
+
 export default function ServiceOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -254,11 +262,12 @@ export default function ServiceOrdersPage() {
       ? `${vehicles.find((v) => v.id === vehicleId)?.licensePlate} - ${vehicles.find((v) => v.id === vehicleId)?.brand ?? ''} ${vehicles.find((v) => v.id === vehicleId)?.model ?? ''}`.trim()
       : '';
 
-  const handleFilter = async () => {
+  const handleFilter = async (overrideStatus?: string) => {
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
-      if (statusFilter) params.set('status', statusFilter);
+      const activeStatus = overrideStatus !== undefined ? overrideStatus : statusFilter;
+      if (activeStatus) params.set('status', activeStatus);
       const res = await api.get<PaginatedResponse<ServiceOrder>>(`/service-orders?${params}`);
       setOrders(res.data);
     } catch {
@@ -533,11 +542,15 @@ export default function ServiceOrdersPage() {
           placeholder="Buscar ordens..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleFilter()}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleFilter(); }}
         />
         <Select
           value={statusFilter || 'ALL'}
-          onValueChange={(value) => setStatusFilter(value === 'ALL' ? '' : value)}
+          onValueChange={(value) => {
+            const next = value === 'ALL' ? '' : value;
+            setStatusFilter(next);
+            handleFilter(next);
+          }}
         >
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Todos os status" />
@@ -551,7 +564,7 @@ export default function ServiceOrdersPage() {
             <SelectItem value="CANCELLED">Cancelada</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={handleFilter}>
+        <Button variant="outline" onClick={() => handleFilter()}>
           <Search className="h-4 w-4" />
         </Button>
       </div>
@@ -600,7 +613,7 @@ export default function ServiceOrdersPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[order.status] ?? 'outline'}>
-                        {order.status}
+                        {statusLabel[order.status] ?? order.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

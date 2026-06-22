@@ -19,6 +19,14 @@ export class PaymentsService {
       throw new NotFoundException('Service order not found');
     }
 
+    if (order.status === 'CANCELLED') {
+      throw new BadRequestException('Cannot add payment to a cancelled order');
+    }
+
+    if (order.status === 'DRAFT') {
+      throw new BadRequestException('Cannot add payment to a draft order. Open the order first');
+    }
+
     // Calculate total already paid
     const totalPaid = order.payments.reduce(
       (sum, p) => sum.add(p.amount),

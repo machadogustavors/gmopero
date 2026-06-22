@@ -107,6 +107,7 @@ export class FinanceService {
         acc.totalAmount += item.totalAmount;
         acc.totalPaid += item.totalPaid;
         acc.totalPending += item.pendingAmount;
+        if (item.pendingAmount > 0) acc.pendingCount += 1;
         if (item.status === 'OVERDUE') acc.overdueCount += 1;
         return acc;
       },
@@ -114,6 +115,7 @@ export class FinanceService {
         totalAmount: 0,
         totalPaid: 0,
         totalPending: 0,
+        pendingCount: 0,
         overdueCount: 0,
       },
     );

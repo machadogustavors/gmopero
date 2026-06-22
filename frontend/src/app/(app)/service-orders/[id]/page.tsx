@@ -32,6 +32,7 @@ import {
   Play,
   Lock,
   Ban,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Select,
@@ -60,6 +61,28 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
   CANCELLED: 'destructive',
 };
 
+const statusLabel: Record<string, string> = {
+  DRAFT: 'Rascunho',
+  OPEN: 'Aberta',
+  CLOSED: 'Fechada',
+  INVOICED: 'Faturada',
+  CANCELLED: 'Cancelada',
+};
+
+const itemTypeLabel: Record<string, string> = {
+  PART: 'Peça',
+  SERVICE: 'Serviço',
+};
+
+const paymentMethodLabel: Record<string, string> = {
+  PIX: 'PIX',
+  CASH: 'Dinheiro',
+  CREDIT_CARD: 'Cartão de Crédito',
+  DEBIT_CARD: 'Cartão de Débito',
+  BANK_SLIP: 'Boleto',
+  BANK_TRANSFER: 'Transferência',
+};
+
 export default function ServiceOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -82,6 +105,9 @@ export default function ServiceOrderDetailPage() {
   // Catalog
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
+
+  // Cancel confirmation dialog
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
 
   // Add Payment dialog
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -202,6 +228,16 @@ export default function ServiceOrderDetailPage() {
     }
   };
 
+  const handleDeletePayment = async (paymentId: string) => {
+    try {
+      await api.delete(`/payments/${paymentId}`);
+      toast.success('Pagamento removido');
+      loadOrder();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao remover pagamento');
+    }
+  };
+
   const handleToggleInvoiceFlag = async (
     flag: 'laborInvoiceIssued' | 'partsInvoiceIssued',
     value: boolean,
@@ -246,7 +282,7 @@ export default function ServiceOrderDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">OS #{order.orderNumber}</h1>
-            <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
+            <Badge variant={statusVariant[order.status]}>{statusLabel[order.status] ?? order.status}</Badge>
           </div>
           <p className="text-muted-foreground">
             {order.customer && 'name' in order.customer ? order.customer.name : ''}
@@ -268,12 +304,39 @@ export default function ServiceOrderDetailPage() {
             </Button>
           )}
           {canCancel && (
-            <Button onClick={() => handleStatusTransition('cancel')} variant="destructive">
+            <Button onClick={() => setIsCancelOpen(true)} variant="destructive">
               <Ban className="mr-2 h-4 w-4" /> Cancelar
             </Button>
           )}
         </div>
       </div>
+
+      {/* Cancel confirmation dialog */}
+      <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Cancelar Ordem de Serviço?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Essa ação não pode ser desfeita. A OS #{order.orderNumber} será cancelada permanentemente.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setIsCancelOpen(false)}>Voltar</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setIsCancelOpen(false);
+                handleStatusTransition('cancel');
+              }}
+            >
+              Sim, cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {order.description && (
         <Card>
@@ -438,7 +501,7 @@ export default function ServiceOrderDetailPage() {
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant={item.type === 'PART' ? 'outline' : 'secondary'}>
-                        {item.type}
+                        {itemTypeLabel[item.type] ?? item.type}
                       </Badge>
                     </TableCell>
                     <TableCell>{item.description}</TableCell>
@@ -539,12 +602,13 @@ export default function ServiceOrderDetailPage() {
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Observações</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(!order.payments || order.payments.length === 0) ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhum pagamento ainda
                   </TableCell>
                 </TableRow>
@@ -552,11 +616,22 @@ export default function ServiceOrderDetailPage() {
                 order.payments.map((p: Payment) => (
                   <TableRow key={p.id}>
                     <TableCell>
-                      <Badge variant="outline">{p.method.replace('_', ' ')}</Badge>
+                      <Badge variant="outline">{paymentMethodLabel[p.method] ?? p.method}</Badge>
                     </TableCell>
-                    <TableCell>{new Date(p.paidAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(p.paidAt).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell className="text-right font-medium">R$ {Number(p.amount).toFixed(2)}</TableCell>
                     <TableCell className="text-muted-foreground">{p.notes ?? '—'}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeletePayment(p.id)}
+                        className="text-destructive"
+                        title="Remover pagamento"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}

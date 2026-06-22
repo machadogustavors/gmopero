@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import type { CashFlowResponse, ReceivablesResponse, ReceivableStatus } from '@/lib/types';
@@ -76,10 +76,7 @@ export default function FinancePage() {
     loadData();
   }, []);
 
-  const pendingCount = useMemo(
-    () => receivables?.data.filter((item) => item.pendingAmount > 0).length ?? 0,
-    [receivables],
-  );
+  const pendingCount = receivables?.summary.pendingCount ?? 0;
 
   return (
     <div className="space-y-6">

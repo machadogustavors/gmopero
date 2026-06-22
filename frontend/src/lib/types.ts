@@ -308,6 +308,7 @@ export interface ReceivablesResponse {
     totalAmount: number;
     totalPaid: number;
     totalPending: number;
+    pendingCount: number;
     overdueCount: number;
   };
 }
